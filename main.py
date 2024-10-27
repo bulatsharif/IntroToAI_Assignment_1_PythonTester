@@ -1,7 +1,6 @@
 import random
 import re
 import time
-from statistics import mean, mode, stdev
 from subprocess import Popen, PIPE
 
 def print_grid(grid):
@@ -46,11 +45,12 @@ def handle_move(move,grid):
     return response
 
 
-time_result = []
+time_result_astar = []
+time_result_backtrack = []
 number_of_wins = 0
 number_of_losses = 0
 
-for i in range(1000):
+for i in range(50):
     keymaker = (random.randint(0, 8), random.randint(0, 8))
     agents = [(random.randint(0,8), random.randint(0,8)) for i in range(random.randint(0, 3))]
     sentinel =[(random.randint(0, 8), random.randint(0,8)) for i in range(random.randint(0, 1))]
@@ -108,8 +108,6 @@ for i in range(1000):
     if map_grid[keymaker[0]][keymaker[1]] != 'K':
         map_grid[keymaker[0]][keymaker[1]] = 'Z'
 
-    print_grid(map_grid)
-
     # 2) Run the executable file, give queries to my program
     start = time.time()
     p = Popen(['./astar.out'], shell=True, stdout=PIPE, stdin=PIPE)
@@ -137,24 +135,55 @@ for i in range(1000):
 
     if (result.split()[1] == "-1"):
         number_of_losses += 1
+        print_grid(map_grid)
     else:
         number_of_wins += 1
 
 
     end = time.time()
 
-    time_result.append(end - start)
+    time_result_astar.append(end - start)
+
+
+    # backtrack
+    start = time.time()
+    p = Popen(['./backtrack.out'], shell=True, stdout=PIPE, stdin=PIPE)
+    perception_variant = bytes('1\n', 'UTF-8')
+    p.stdin.write(perception_variant)
+    p.stdin.flush() # maybe remove?
+    keymaker_string = str(keymaker[0]) + " " + str(keymaker[1]) + "\n"
+    p.stdin.write(bytes(keymaker_string, 'UTF-8'))
+    p.stdin.flush()
+    result = p.stdout.readline().decode('UTF-8')
+    match = re.search(r'^e', result)
+    while not match:
+        response = handle_move(result.split(),map_grid)
+        length_of_response = str(len(response)) + "\n"
+        p.stdin.write(bytes(length_of_response, 'UTF-8'))
+        p.stdin.flush()
+        for key in response:
+            single_response = str(key) + '\n'
+            p.stdin.write(bytes(single_response, 'UTF-8'))
+            p.stdin.flush()
+        result = p.stdout.readline().decode('UTF-8')
+        if result.find('e') != -1:
+            break
+
+
+    end = time.time()
+
+    time_result_backtrack.append(end - start)
     print(f'Result of the A* search in {end - start} seconds: {result}')
 
 
-print("Number of wins for A* search: " + str(number_of_wins))
-print("Number of losses for A* search: " + str(number_of_losses))
-print(f"Median: {mean(time_result)}")
-print(f"Mode: {mode(time_result)}")
-print(f"Standard Deviation: {stdev(time_result)}")
-
-
-# 3) Save the statistics in some file
-
-# Maybe use pipes, or other files, C++ writes to it, python read from it.
+file1 = open("statistics.txt", "a")
+[file1.write(str(val) + "\n") for val in time_result_astar]
+file1.write("Number of wins for backtrack search: " + str(number_of_wins) + '\n')
+file1.write("Number of losses for backtrack search: " + str(number_of_losses) + '\n')
+file1.close()
+file2 = open("statistics_backtrack.txt", "a")
+[file2.write(str(val) + "\n") for val in time_result_backtrack]
+file2.write("Number of wins for backtrack search: " + str(number_of_wins) + '\n')
+file2.write("Number of losses for backtrack search: " + str(number_of_losses) + '\n')
+file2.close()
 
