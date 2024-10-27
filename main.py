@@ -178,8 +178,8 @@ for i in range(50):
 
 file1 = open("statistics.txt", "a")
 [file1.write(str(val) + "\n") for val in time_result_astar]
-file1.write("Number of wins for backtrack search: " + str(number_of_wins) + '\n')
-file1.write("Number of losses for backtrack search: " + str(number_of_losses) + '\n')
+file1.write("Number of wins for A* search: " + str(number_of_wins) + '\n')
+file1.write("Number of losses for A* search: " + str(number_of_losses) + '\n')
 file1.close()
 file2 = open("statistics_backtrack.txt", "a")
 [file2.write(str(val) + "\n") for val in time_result_backtrack]

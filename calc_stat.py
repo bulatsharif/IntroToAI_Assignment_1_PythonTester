@@ -12,6 +12,7 @@ for i in range(1001):
 for i in range(2):
     print(file1.readline(), end="")
 
+print()
 print(f"Median: {mean(list)}")
 print(f"Mode: {mode(list)}")
 print(f"Standard Deviation: {stdev(list)}")
@@ -28,6 +29,8 @@ for i in range(1000):
 
 for i in range(2):
     print(file1.readline(), end="")
+
+print()
 print(f"Median: {mean(list)}")
 print(f"Mode: {mode(list)}")
 print(f"Standard Deviation: {stdev(list)}")

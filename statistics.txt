@@ -999,5 +999,5 @@
 0.010120868682861328
 0.017500877380371094
 0.017499923706054688
-Number of wins for backtrack search: 886
-Number of losses for backtrack search: 114
+Number of wins for A*  search: 886
+Number of losses for A* search: 114
