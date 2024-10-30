@@ -1,8 +1,8 @@
 #include <iostream>
 #include <set>
-#include <queue>
 #include <algorithm>
 #include <vector>
+#include <stack>
 #include <climits>
 using namespace std;
 
@@ -33,7 +33,7 @@ struct Node {
 };
 
 // The game grid.
-vector<vector<Node>> nodes(9, vector<Node>(9, Node()));
+vector<vector<Node> > nodes(9, vector<Node>(9, Node()));
 
 void initializeNodes () {
     // This method used to initialize all nodes to make them ready for algorithm.
@@ -50,6 +50,7 @@ void initializeNodes () {
     nodes[0][0].parent_j = 0;
 }
 
+
 bool isPositionValid(int i, int j) {
     return (i >= 0) && (i < 9) && (j>= 0) && (j < 9);
 }
@@ -60,10 +61,6 @@ bool isDestination(int i, int j) {
         return true;
     }
     return false;
-}
-
-int calculateHeuristics(const Node& node) {
-    return abs(node.self_i - keymaker.first) + abs(node.self_j- keymaker.second);
 }
 
 void handle_input() {
@@ -103,36 +100,17 @@ void handle_input() {
     }
 }
 
-
-void handle_node(const Node& currentNode, queue<Node>& bfsTraversal, int l, int r) {
-    // This function used for handling the neighbouring cells of the node
-    // It firstly checks if the given node is valid (meaning inside the game grid)
-    // And that this node is not node deadly (enemies' perception zone or the enemy itself)
-    // If no, then updates the value of the node, parents, and mark as visited.
-    // Then pushes the node to the queue
-    // The r and l parameters are responsible for understanding to which neighbour we go
-
-    if(isPositionValid(currentNode.self_i + l,currentNode.self_j + r) && !nodes[currentNode.self_i + l][currentNode.self_j + r].visited && !nodes[currentNode.self_i + l][currentNode.self_j + r].death) {
-        nodes[currentNode.self_i + l][currentNode.self_j + r].f = currentNode.f + 1;
-        nodes[currentNode.self_i + l][currentNode.self_j + r].parent_i = currentNode.self_i;
-        nodes[currentNode.self_i + l][currentNode.self_j + r].parent_j = currentNode.self_j;
-        nodes[currentNode.self_i + l][currentNode.self_j + r].visited = true;
-        bfsTraversal.push(nodes[currentNode.self_i + l][currentNode.self_j + r]);
-    }
-}
-
-void backtrack(Node& last,const Node& currentNode, queue<Node>& bfsTraversal) {
-    // This function is used when, for example, Neo encountered deadlock
-    // So then, the inner algorithm - BFS, will choose the next node to go with.
-    // However, it will see as the teleportation, for example, we were in the node (2,0), and imagine here we have
-    // deadlock, therefore, the algorithm will choose (0, 1). To "simulate" backtracking, the function is used
-    // It uses parents to back to the initial position safely (as the parents path is surely safe, because
-    // it was chosen by this algorithm). From initial position, it goes also using parents to the
-    // "teleportation" position, simulating the movements.
+void backtrack(Node& last,const Node& currentNode) {
+    // This function is used when Actor encounters deadlock, and he has to teleport
+    // However, teleport are prohibited in this algorithm, therefore, I simulate sequential moves
+    // So, the algorithm uses parents of the previous node and currentNode, to go to the initial position (0, 0)
+    // And from that, go to the currentNode, through inverse path. Also, along the way it accepts the inputs
+    // from the interactor
 
     while(!(last.self_i == 0 && last.self_j == 0)) {
         last = nodes[last.parent_i][last.parent_j];
         cout << "m "<< last.self_j << " " << last.self_i << endl;
+        cout.flush();
         handle_input();
     }
 
@@ -148,70 +126,242 @@ void backtrack(Node& last,const Node& currentNode, queue<Node>& bfsTraversal) {
 
     for(auto it = path.begin() + 1; it != path.end(); it++) {
         cout << *it << endl;
+        cout.flush();
         handle_input();
     }
 }
 
 
-void BFS() {
-    // The function for the "Backtracking" algorithm itself, so it is seen just as A* without heuristics,
-    // or as Dijkstra on unweighted graph. So, we use the queue to make the traversal BFS style.
-    // I used BFS instead of DFS, since DFS is very inefficient in shortest-path finding. (was tested)
-    // I add the initial node, iterate until I get zero queue. I use aforementioned method along the way.
-    // So, If I reached the goal, I print the path and send answer. If not, I proceed with algorithm, handling
-    // inputs in parallel, as moves goes on. If the queue is empty, but we didn't output anything at this moment
-    // Then the doesn't the solution.
-    queue<Node> bfsTraversal;
-    bfsTraversal.push(nodes[0][0]);
-    int count = 0;
+bool isMapSolvable(Node& currentNode) {
+    // This function is used to check whether the map has solution
+    // It is done by finding any path to the destination
+    // By applying iterative DFS (The same DFS, but no in recursion format), I get some path to the keymaker.
+    // If after traversing all possible nodes, I did not encounter keymaker, then the map is unsolvable, returns false.
+    stack<Node> depthFirstSearch;
+
+    depthFirstSearch.push(currentNode);
 
     Node last;
-    while(!bfsTraversal.empty()) {
-        Node currentNode = bfsTraversal.front();
-        bfsTraversal.pop();
-        while(currentNode.death == true) {
-            currentNode = bfsTraversal.front();
-            bfsTraversal.pop();
-        }
 
-        if(isDestination(currentNode.self_i,currentNode.self_j)) {
-            if(abs(last.self_i - currentNode.self_i) + abs(last.self_j - currentNode.self_j) > 1) {
-                backtrack(last, currentNode, bfsTraversal);
-            } else {
-                cout << "m " << currentNode.self_j << " " << currentNode.self_i << endl;
-                handle_input();
-            }
-            cout << "e " << currentNode.f << endl;
+    while(!depthFirstSearch.empty()) {
+        Node currentNode = depthFirstSearch.top();
+        depthFirstSearch.pop();
 
-            break;
-        }
-        nodes[currentNode.self_i][currentNode.self_j].visited = true;
-        if(count != 0) {
-            if(abs(last.self_i - currentNode.self_i) + abs(last.self_j - currentNode.self_j) > 1) {
-                backtrack(last, currentNode, bfsTraversal);
-            } else {
-                cout << "m " << currentNode.self_j << " " << currentNode.self_i << endl;
-                handle_input();
-            }
 
+        // When I have teleportation
+        if(abs(last.self_i - currentNode.self_i) + abs(last.self_j - currentNode.self_j) > 1) {
+            backtrack(last, currentNode);
         } else {
-            cout << "m " << currentNode.self_i << " " << currentNode.self_j << endl;
+            cout << "m " << currentNode.self_j << " " << currentNode.self_i << endl;
+            cout.flush();
             handle_input();
         }
 
+        if (isDestination(currentNode.self_i, currentNode.self_j)) {
+            last = currentNode;
+            while(!(last.self_i == 0 && last.self_j == 0)) {
+                last = nodes[last.parent_i][last.parent_j];
+                cout << "m "<< last.self_j << " " << last.self_i << endl;
+                cout.flush();
+                handle_input();
+            }
+            return true;
+        }
+
         last = currentNode;
-        handle_node(currentNode, bfsTraversal, 0, 1);
-        handle_node(currentNode, bfsTraversal, 1, 0);
-        handle_node(currentNode, bfsTraversal, 0, -1);
-        handle_node(currentNode, bfsTraversal, -1, 0);
-        count++;
+        nodes[currentNode.self_i][currentNode.self_j].visited = true;
+
+
+        // Add neighbouring nodes to the traversal
+        if(isPositionValid(currentNode.self_i + 1,currentNode.self_j + 0) && !nodes[currentNode.self_i + 1][currentNode.self_j + 0].visited && !nodes[currentNode.self_i + 1][currentNode.self_j + 0].death) {
+            nodes[currentNode.self_i + 1][currentNode.self_j + 0].parent_i = currentNode.self_i;
+            nodes[currentNode.self_i + 1][currentNode.self_j + 0].parent_j = currentNode.self_j;
+            depthFirstSearch.push(nodes[currentNode.self_i + 1][currentNode.self_j + 0]);
+
+        }
+
+        if(isPositionValid(currentNode.self_i - 1,currentNode.self_j + 0) && !nodes[currentNode.self_i - 1][currentNode.self_j + 0].visited && !nodes[currentNode.self_i - 1][currentNode.self_j + 0].death) {
+            nodes[currentNode.self_i - 1][currentNode.self_j + 0].parent_i = currentNode.self_i;
+            nodes[currentNode.self_i - 1][currentNode.self_j + 0].parent_j = currentNode.self_j;
+            depthFirstSearch.push(nodes[currentNode.self_i - 1][currentNode.self_j + 0]);
+
+        }
+
+        if(isPositionValid(currentNode.self_i + 0,currentNode.self_j + 1) && !nodes[currentNode.self_i + 0][currentNode.self_j + 1].visited && !nodes[currentNode.self_i + 0][currentNode.self_j + 1].death) {
+            nodes[currentNode.self_i + 0][currentNode.self_j + 1].parent_i = currentNode.self_i;
+            nodes[currentNode.self_i + 0][currentNode.self_j + 1].parent_j = currentNode.self_j;
+            depthFirstSearch.push(nodes[currentNode.self_i + 0][currentNode.self_j + 1]);
+
+        }
+
+        if(isPositionValid(currentNode.self_i + 0,currentNode.self_j - 1) && !nodes[currentNode.self_i + 0][currentNode.self_j - 1].visited && !nodes[currentNode.self_i + 0][currentNode.self_j - 1].death) {
+            nodes[currentNode.self_i + 0][currentNode.self_j - 1].parent_i = currentNode.self_i;
+            nodes[currentNode.self_i + 0][currentNode.self_j - 1].parent_j = currentNode.self_j;
+            depthFirstSearch.push(nodes[currentNode.self_i + 0][currentNode.self_j - 1]);
+
+        }
     }
-    cout << "e -1" << endl;
+    return false;
+}
+
+void printPath() {
+    // This function used when I already have path to the keymaker, by using the backtracking function
+    //  So, I use the function to trace the path through the parents to the keymaker
+    // At the end, I output the answer
+    auto currentNode = nodes[keymaker.first][keymaker.second];
+    auto copyCurrent = nodes[keymaker.first][keymaker.second];
+    vector<string> path;
+    while(!(copyCurrent.self_i == 0 && copyCurrent.self_j == 0)) {
+        copyCurrent = nodes[copyCurrent.parent_i][copyCurrent.parent_j];
+        path.emplace_back("m " + to_string(copyCurrent.self_j) + " " + to_string(copyCurrent.self_i));
+    }
+
+    reverse(path.begin(), path.end());
+    path.emplace_back("m " + to_string(currentNode.self_j) + " " + to_string(currentNode.self_i));
+
+    for(auto it = path.begin() + 1; it != path.end(); it++) {
+        cout << *it << endl;
+        cout.flush();
+        handle_input();
+    }
+
+    cout << "e " << currentNode.f << endl;
+    cout.flush();
+    exit(0);
+}
+
+void backtracking(Node& currentNode) {
+
+    // This is the main backtracking algorithm that finds the shortest path to the keymaker
+    // It uses DFS, as in the lecture slides. In the slides, the check if performed whether the path is too costly
+    // or incorrect. Here, I have the same, so I check, if the neighbouring cell already have better path, so I don't
+    // consider it (move back up to the three). This can be seen as pruning, I throw out non-effective branches.
+
+    if (isDestination(currentNode.self_i, currentNode.self_j)) {
+        return;
+    }
+
+    if (currentNode.death) return;
+
+    // Update neighbouring cells costs
+
+    if(isPositionValid(currentNode.self_i + 1, currentNode.self_j) && currentNode.f + 1 <= nodes[currentNode.self_i + 1][currentNode.self_j].f) nodes[currentNode.self_i + 1][currentNode.self_j].f = currentNode.f + 1;
+    if(isPositionValid(currentNode.self_i - 1, currentNode.self_j) && currentNode.f + 1 <= nodes[currentNode.self_i - 1][currentNode.self_j].f) nodes[currentNode.self_i - 1][currentNode.self_j].f = currentNode.f + 1;
+    if(isPositionValid(currentNode.self_i + 0, currentNode.self_j + 1) && currentNode.f + 1 <= nodes[currentNode.self_i + 0][currentNode.self_j + 1].f) nodes[currentNode.self_i + 0][currentNode.self_j + 1].f = currentNode.f + 1;
+    if(isPositionValid(currentNode.self_i + 0, currentNode.self_j - 1) && currentNode.f + 1 <= nodes[currentNode.self_i + 0][currentNode.self_j - 1].f) nodes[currentNode.self_i + 0][currentNode.self_j - 1].f = currentNode.f + 1;
+
+    // Analyse neighbouring cells, if can be improved, recursively call this function with child nodes.
+    if(isPositionValid(currentNode.self_i + 1, currentNode.self_j + 0) &&
+        !nodes[currentNode.self_i + 1][currentNode.self_j + 0].death && !(nodes[currentNode.self_i + 1][currentNode.self_j + 0].f  < currentNode.f))
+    {
+        nodes[currentNode.self_i + 1][currentNode.self_j + 0].f = currentNode.f + 1;
+        nodes[currentNode.self_i + 1][currentNode.self_j + 0].parent_i = currentNode.self_i;
+        nodes[currentNode.self_i + 1][currentNode.self_j + 0].parent_j = currentNode.self_j;
+        backtracking(nodes[currentNode.self_i + 1][currentNode.self_j + 0]);
+    }
+
+    if(isPositionValid(currentNode.self_i - 1, currentNode.self_j + 0) &&
+    !nodes[currentNode.self_i - 1][currentNode.self_j + 0].death && !(nodes[currentNode.self_i - 1][currentNode.self_j + 0].f < currentNode.f))
+    {
+        nodes[currentNode.self_i - 1][currentNode.self_j + 0].f = currentNode.f + 1;
+        nodes[currentNode.self_i - 1][currentNode.self_j + 0].parent_i = currentNode.self_i;
+        nodes[currentNode.self_i - 1][currentNode.self_j + 0].parent_j = currentNode.self_j;
+        backtracking(nodes[currentNode.self_i - 1][currentNode.self_j + 0]);
+
+    }
+
+    if(isPositionValid(currentNode.self_i + 0, currentNode.self_j + 1) &&
+    !nodes[currentNode.self_i + 0][currentNode.self_j + 1].death && !(nodes[currentNode.self_i + 0][currentNode.self_j + 1].f < currentNode.f))
+    {
+        nodes[currentNode.self_i + 0][currentNode.self_j + 1].f = currentNode.f + 1;
+        nodes[currentNode.self_i + 0][currentNode.self_j + 1].parent_i = currentNode.self_i;
+        nodes[currentNode.self_i + 0][currentNode.self_j + 1].parent_j = currentNode.self_j;
+        backtracking(nodes[currentNode.self_i + 0][currentNode.self_j + 1]);
+
+    }
+
+    if(isPositionValid(currentNode.self_i + 0, currentNode.self_j - 1) &&
+    !nodes[currentNode.self_i + 0][currentNode.self_j - 1].death && !(nodes[currentNode.self_i + 0][currentNode.self_j - 1].f < currentNode.f))
+    {
+        nodes[currentNode.self_i + 0][currentNode.self_j - 1].f = currentNode.f + 1;
+        nodes[currentNode.self_i + 0][currentNode.self_j - 1].parent_i = currentNode.self_i;
+        nodes[currentNode.self_i + 0][currentNode.self_j - 1].parent_j = currentNode.self_j;
+        backtracking(nodes[currentNode.self_i + 0][currentNode.self_j - 1]);
+
+    }
+}
+
+void analyseTheMap(Node& currentNode) {
+    // This function is used to traverse through all the map, so I get  the all information about
+    // enemies perception zones, to make my other algorithm ready for finding the shortest path.
+    // It also implements iterative DFS, handles teleportations, and process neighbouring cells.
+
+    stack<Node> depthFirstSearch;
+
+    depthFirstSearch.push(currentNode);
+
+    Node last;
+
+    while(!depthFirstSearch.empty()) {
+        Node currentNode = depthFirstSearch.top();
+        depthFirstSearch.pop();
+
+        if(abs(last.self_i - currentNode.self_i) + abs(last.self_j - currentNode.self_j) > 1) {
+            backtrack(last, currentNode);
+        } else {
+            cout << "m " << currentNode.self_j << " " << currentNode.self_i << endl;
+            cout.flush();
+            handle_input();
+        }
+        last = currentNode;
+        nodes[currentNode.self_i][currentNode.self_j].visited = true;
+
+
+        if(isPositionValid(currentNode.self_i + 1,currentNode.self_j + 0) && !nodes[currentNode.self_i + 1][currentNode.self_j + 0].visited && !nodes[currentNode.self_i + 1][currentNode.self_j + 0].death) {
+            nodes[currentNode.self_i + 1][currentNode.self_j + 0].parent_i = currentNode.self_i;
+            nodes[currentNode.self_i + 1][currentNode.self_j + 0].parent_j = currentNode.self_j;
+            depthFirstSearch.push(nodes[currentNode.self_i + 1][currentNode.self_j + 0]);
+
+        }
+
+        if(isPositionValid(currentNode.self_i - 1,currentNode.self_j + 0) && !nodes[currentNode.self_i - 1][currentNode.self_j + 0].visited && !nodes[currentNode.self_i - 1][currentNode.self_j + 0].death) {
+            nodes[currentNode.self_i - 1][currentNode.self_j + 0].parent_i = currentNode.self_i;
+            nodes[currentNode.self_i - 1][currentNode.self_j + 0].parent_j = currentNode.self_j;
+            depthFirstSearch.push(nodes[currentNode.self_i - 1][currentNode.self_j + 0]);
+
+        }
+
+        if(isPositionValid(currentNode.self_i + 0,currentNode.self_j + 1) && !nodes[currentNode.self_i + 0][currentNode.self_j + 1].visited && !nodes[currentNode.self_i + 0][currentNode.self_j + 1].death) {
+            nodes[currentNode.self_i + 0][currentNode.self_j + 1].parent_i = currentNode.self_i;
+            nodes[currentNode.self_i + 0][currentNode.self_j + 1].parent_j = currentNode.self_j;
+            depthFirstSearch.push(nodes[currentNode.self_i + 0][currentNode.self_j + 1]);
+
+        }
+
+        if(isPositionValid(currentNode.self_i + 0,currentNode.self_j - 1) && !nodes[currentNode.self_i + 0][currentNode.self_j - 1].visited && !nodes[currentNode.self_i + 0][currentNode.self_j - 1].death) {
+            nodes[currentNode.self_i + 0][currentNode.self_j - 1].parent_i = currentNode.self_i;
+            nodes[currentNode.self_i + 0][currentNode.self_j - 1].parent_j = currentNode.self_j;
+            depthFirstSearch.push(nodes[currentNode.self_i + 0][currentNode.self_j - 1]);
+
+        }
+    }
+
+
+    while(!(last.self_i == 0 && last.self_j == 0)) {
+        last = nodes[last.parent_i][last.parent_j];
+        cout << "m "<< last.self_j << " " << last.self_i << endl;
+        cout.flush();
+        handle_input();
+    }
+
+    cout << "m 0 0" << endl;
+    cout.flush();
+    handle_input();
 }
 
 
+
 int main() {
-    // main function that initializes nodes, takes very first parameters, and calls the main algorithm.
     initializeNodes();
     int perceptionVariant;
     cin >> perceptionVariant;
@@ -219,6 +369,21 @@ int main() {
     cin >> x_keymaker >> y_keymaker;
     keymaker.first = y_keymaker;
     keymaker.second = x_keymaker;
-    BFS();
+    // I check whether the map is solvable
+    auto flag = isMapSolvable(nodes[0][0]);
+    if (flag == true) {
+        // If yes, then I again initialize nodes to get rid of isMapSolvable function remainders.
+        initializeNodes();
+        // Then I analyze the map for enemies.
+        analyseTheMap(nodes[0][0]);
+        // Then I perform main backtracking algorithm to find the shortest path to the keymaker.
+        backtracking(nodes[0][0]);
+        // After I found it, print the path.
+        printPath();
+    }
+
+    // If I got here, then the map is not solvable, so output corresponding answer.
+    cout << "e -1" << endl;
+    cout.flush();
     return 0;
 }
